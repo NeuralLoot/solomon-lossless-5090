@@ -1,0 +1,37 @@
+QUOTE_PARENT: https://x.com/Oluwaphilemon1/status/2117805254112621022
+
+POST1:
+Qwen3.8-27B at ~115 tok/s on an RTX 5090 is a real plain-decode number. The BF16 file is ~55.6 GB, so 32 GB means a quant.
+
+We serve that model family, 4-bit, on our own 5090. Thinking on, greedy, tonight: 183 tok/s. The extra speed does not change the greedy tokens.
+
+POST2:
+Lossless here does not mean “4-bit equals BF16”.
+
+It means the fast path and the one-token path of the same 4-bit model emit the same greedy string. A small drafter proposes up to 7 tokens. The model scores the block. Only the prefix it would have written itself is kept.
+
+POST3:
+Tonight, 3 Nov 2026, RTX 5090, context 57,344, DFlash K=7, greedy:
+
+One request, thinking off: 181 tok/s.
+One request, thinking on: 183 tok/s, 5.41 tokens kept per step.
+
+Four requests at once on the short prompts was slower (67 tok/s). A 57k window does not get a free lunch from batching those prefills. We are not hiding that.
+
+POST4:
+Why it beats a plain ~115 tok/s decode: a plain step reads the weights for one token. We read them once for a block and keep about 5.4 tokens when the drafter is right.
+
+On 16 Oct, same 5090, 32k window, the plain batch-invariant baseline was 38 tok/s and the block drafter was 217 tok/s, 16/16 identical greedy strings. MTP with 2 drafts only held about 1.9 tokens per step.
+
+POST5:
+The hard part on this architecture is that bf16 logits depend on the shape of the pass. A verify block and a one-token decode were not the same kernels.
+
+Recurrent state stays fp32. Norms and the 4-bit matrices use one batch-invariant plan, not a plan that changes with batch size. Attention for a token does not depend on who else is in the step. Async scheduling is off, because a cold start did not reproduce itself.
+
+POST6:
+What we are not saying:
+
+Not “4-bit equals the official BF16”.
+Not “440 tok/s” or “227 tok/s” for the server that is up tonight. Those were 16 Oct, 32k context.
+Not a fresh 16-prompt identity rerun tonight. That comparison needs a second, plain server. The identity numbers are from 16 Oct: 16/16, including with 4 requests in flight.
+Tonight’s 16k read: prefill 71–80 s, usable decode 83 and 32 tok/s, 3.82 tokens kept per step. The 16 Oct 16k read was 134 tok/s on a 32k window. The drafter only sees 2,048 tokens of context, so long prompts accept fewer drafts.
