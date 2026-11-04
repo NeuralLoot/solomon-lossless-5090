@@ -1,4 +1,4 @@
-# Handoff: Solomon on an RTX 5090, faster than 115 tok/s, lossless against its own greedy decode
+# Handoff: Solomon — lossless speculative decoding of Qwen3.8-27B (4-bit) on one RTX 5090
 
 Give this file to the bot that will write the X thread and the GitHub repo. Everything it is allowed to say is in here. If a number is not in this file, do not invent it.
 
@@ -12,7 +12,7 @@ Give this file to the bot that will write the X thread and the GitHub repo. Ever
 - Do not mention internal agents, training corpora, private paths, hostnames, or anything that is not in this file.
 - The 16k read is finished and messy. Quote prefill (71–80 s) and the two real decode rows (83 and 32 tok/s), plus 3.82 tokens per step. Do not quote a 70.7 tok/s aggregate. Two of the four decode clocks came back as zero.
 
-## What we are answering
+## Context: public reference numbers (not a reply)
 
 Public post, 3 Nov 2026, [@Oluwaphilemon1](https://x.com/Oluwaphilemon1/status/2117805254112621022), quoting a video from [@pranjalsoni_](https://x.com/pranjalsoni_/status/2089317250717348338):
 
@@ -32,7 +32,7 @@ Date: 3 Nov 2026, 19:47–20:00 America/Denver. GPU: NVIDIA GeForce RTX 5090, 32
 | Short, both concurrencies, draft stats | Steps counted on the server across the short read only. | 1,746 steps, **5.49 tokens/step**, draft acceptance 0.642. Per-position 0.887, 0.800, 0.701, 0.621, 0.547, 0.493, 0.443. |
 | 16k context | 4 prompts, measured prompt 16.5k–18.0k tokens, 256 new tokens. Prefill is separate from decode. | Prefill **71–80 s** each. Usable decode rows: **83 tok/s** and **32 tok/s**. Two later rows finished in the same instant as the warm pass, so their tok/s is not usable. Draft stats over the read: **3.82 tokens/step**, acceptance 0.403. |
 
-Against the posted 115 tok/s, on this 5090:
+Compared with the public ~115 tok/s plain-decode reports, on this 5090:
 
 - One reasoning turn with thinking on: **183 tok/s**, about 1.6× that report, at 5.41 accepted tokens per step.
 - One short greedy generation: **181 tok/s**.
@@ -143,9 +143,9 @@ Greedy verify is the argmax of the target’s fp32 logits, the same reduction pl
 ## X thread (copy, do not add numbers)
 
 Post 1.
-Qwen3.8-27B at ~115 tok/s on an RTX 5090 is a real plain-decode number. The BF16 file is ~55.6 GB, so 32 GB means a quant.
+Qwen3.8-27B, 4-bit, on one RTX 5090: 183 tok/s with thinking on, greedy, lossless against the same model's own greedy decode.
 
-We serve that model family, 4-bit, on our own 5090. Thinking on, greedy, tonight: 183 tok/s. The extra speed does not change the greedy tokens.
+The BF16 file is ~55.6 GB, so 32 GB means a quant. We serve W4A16 with a 7-token block drafter (DFlash). Writeup: https://github.com/NeuralLoot/solomon-lossless-5090
 
 Post 2.
 Lossless here does not mean “4-bit equals BF16”.
@@ -161,7 +161,7 @@ One request, thinking on: 183 tok/s, 5.41 tokens kept per step.
 Four requests at once on the short prompts was slower (67 tok/s). A 57k window does not get a free lunch from batching those prefills. We are not hiding that.
 
 Post 4.
-Why it beats a plain ~115 tok/s decode: a plain step reads the weights for one token. We read them once for a block and keep about 5.4 tokens when the drafter is right.
+For reference, public plain-decode reports for this model on a 5090 are around 115 tok/s. Why speculative is faster: a plain step reads the weights for one token. We read them once for a block and keep about 5.4 tokens when the drafter is right.
 
 On 16 Oct, same 5090, 32k window, the plain batch-invariant baseline was 38 tok/s and the block drafter was 217 tok/s, 16/16 identical greedy strings. MTP with 2 drafts only held about 1.9 tokens per step.
 
@@ -182,7 +182,7 @@ Tonight’s 16k read: prefill 71–80 s, usable decode 83 and 32 tok/s, 3.82 tok
 
 Suggested name: `solomon-lossless-5090` or similar. Suggested description: “Qwen3.8-27B on one RTX 5090: block-draft speed with greedy tokens identical to plain decode.”
 
-README: this file, with the “Rules for the poster” and “X thread” sections removed or left as a comment for maintainers. The public README should start at “What we are answering”.
+README: this file, with the “Rules for the poster” and “X thread” sections removed or left as a comment for maintainers. The public README now starts at “Summary” (own findings first; public numbers only in “Comparison with public numbers”). The README.md file is the source of truth for public copy; framing as a reply was removed 3 Nov 2026.
 
 Do not commit weights, drafts, logs, or environment files. The repo can describe the method. It does not need to ship the checkpoint.
 

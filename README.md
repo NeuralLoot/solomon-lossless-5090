@@ -1,16 +1,8 @@
-# Solomon on an RTX 5090: faster than 115 tok/s, lossless against its own greedy decode
+# Solomon: lossless speculative decoding of Qwen3.8-27B (4-bit) on one RTX 5090
 
-## What we are answering
+## Summary
 
-Public post, 3 Nov 2026, [@Oluwaphilemon1](https://x.com/Oluwaphilemon1/status/2117805254112621022), quoting a video from [@pranjalsoni_](https://x.com/pranjalsoni_/status/2089317250717348338):
-
-Qwen3.8-27B is reportedly about **115 tokens/s** on an RTX 5090 with 32 GB. The BF16 checkpoint is about 55.6 GB, so a quantised build is required, and quantisation can change quality. 115 tok/s is generation speed, not prompt processing.
-
-That is a fair description of a plain quantised decode. Our serving 5090, same model family, 4-bit, does the generation faster than that, and the extra speed is not allowed to change the greedy tokens of that 4-bit model.
-
-## Claim (tonight)
-
-On our RTX 5090, **Qwen3.8-27B** in 4-bit (W4A16; the BF16 file is ~55.6 GB and does not fit in 32 GB) generated at **183 tokens/s** with thinking on and **181 tokens/s** greedy with thinking off, 3 Nov 2026, context **57,344**. A block drafter proposes 7 tokens; the model verifies them and keeps about **5.4** per step.
+On our RTX 5090, **Qwen3.8-27B** in 4-bit (W4A16; the BF16 file is ~55.6 GB and does not fit in 32 GB) generated at **183 tokens/s** with thinking on and **181 tokens/s** greedy with thinking off, 3 Nov 2026, context **57,344**. A block drafter (DFlash, K = 7) proposes 7 tokens; the model verifies them and keeps about **5.4** per step.
 
 **Lossless** here means the speculative server’s **greedy** output matches **plain greedy** of this same 4-bit model. The drafter proposes. The target accepts or rejects. A rejected draft is never spoken. It does **not** mean 4-bit equals BF16.
 
@@ -25,7 +17,7 @@ On our RTX 5090, **Qwen3.8-27B** in 4-bit (W4A16; the BF16 file is ~55.6 GB and 
 | Speculator | DFlash, **K = 7** |
 | Sampling | greedy, temperature 0 |
 
-## Tonight’s bench (3 Nov 2026)
+## Latest bench (3 Nov 2026)
 
 Date: 3 Nov 2026, 19:47–20:00 America/Denver. Context window: **57,344**. No other request was decoding; the draft counter was still before the read started.
 
@@ -37,16 +29,16 @@ Date: 3 Nov 2026, 19:47–20:00 America/Denver. Context window: **57,344**. No o
 | Short, both concurrencies, draft stats | Steps counted on the server across the short read only. | 1,746 steps, **5.49 tokens/step**, draft acceptance 0.642. Per-position 0.887, 0.800, 0.701, 0.621, 0.547, 0.493, 0.443. |
 | 16k context | 4 prompts, measured prompt 16.5k–18.0k tokens, 256 new tokens. Prefill separate from decode. | Prefill **71–80 s** each. Usable decode rows: **83 tok/s** and **32 tok/s**. Two later rows finished in the same instant as the warm pass, so their tok/s is not usable. Draft stats: **3.82 tokens/step**, acceptance 0.403. |
 
-Against the posted 115 tok/s:
+Reading the table:
 
-- One reasoning turn with thinking on: **183 tok/s**, about 1.6× that report, at 5.41 accepted tokens per step.
+- One reasoning turn with thinking on: **183 tok/s** at 5.41 accepted tokens per step.
 - One short greedy generation: **181 tok/s**.
 - Four at once on these short prompts was slower, not faster. A 57,344-token window spends the card on KV; four prefills at once did not pay for themselves on this read.
 - The 16k read is not a clean speed number. Quote prefill (71–80 s) and the two real decode rows (83 and 32 tok/s), plus 3.82 tokens/step. Do not quote a 70.7 tok/s aggregate.
 
 This rebench did **not** reload a plain (non-speculative) server, so it did not repeat the 16-prompt identity comparison tonight. The identity result we stand on is the 16 Oct measurement below.
 
-### Why tonight is slower than our own 23 Oct read
+### Why the latest read is slower than our 23 Oct read
 
 On 23 Oct the same 5090, the same merged checkpoint, and the same DFlash K=7, a clean single-stream read of this same short bench was **299.5 tok/s** (merged candidate 293.7), thinking **258–261 tok/s**. Acceptance was **5.58** tokens/step. Tonight’s short read is **180.8** at **5.49** tokens/step.
 
@@ -58,9 +50,14 @@ Since that clean read, three things on the serving 5090 changed:
 2. Every model forward now also does an extra check that was not in the 299 tok/s process. It does not change how many tokens the drafter keeps.
 3. Four-at-once tonight (**67 tok/s** wall, prefill included) is not a decode-only aggregate. The 57k pool was already full, so four prefills serialized.
 
-### How this compares to published lossless 5090 numbers
+## Comparison with public numbers
 
-A llama.cpp fork (LukasParke, DFlash2, n=7, rejection sampling, IQ4_XS, f16 KV, context about 131k) is the clearest public “fastest lossless” set on one RTX 5090:
+For context, these are figures already published for Qwen3.8-27B-class models on a single RTX 5090. They use different quants, engines, and context windows, so treat them as reference points rather than a head-to-head.
+
+**Plain quantised decode, ~115 tok/s.** Reports circulating in early Nov 2026 (e.g. a video by [@pranjalsoni_](https://x.com/pranjalsoni_/status/2089317250717348338), shared by [@Oluwaphilemon1](https://x.com/Oluwaphilemon1/status/2117805254112621022)) put Qwen3.8-27B at about **115 tok/s** generation on a 32 GB 5090. A quantised build is required there too. Our 183 tok/s thinking-on read is about 1.6× that figure; our own batch-invariant plain baseline (16 Oct) was much lower, at 38 tok/s, so the gap comes from the drafter, not a faster plain decode.
+
+**Lossless speculative decoding in llama.cpp.** 
+A llama.cpp fork (LukasParke, DFlash2, n=7, rejection sampling, IQ4_XS, f16 KV, context about 131k) is the clearest public lossless set on one RTX 5090:
 
 | Their workload | Their tok/s | Our closest read |
 | --- | ---: | --- |

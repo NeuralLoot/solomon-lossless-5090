@@ -1,9 +1,9 @@
-QUOTE_PARENT: https://x.com/Oluwaphilemon1/status/2117805254112621022
+STANDALONE (not a quote/reply). DRAFT — hold for clean rebench.
 
 POST1:
-Qwen3.8-27B at ~115 tok/s on an RTX 5090 is a real plain-decode number. The BF16 file is ~55.6 GB, so 32 GB means a quant.
+Qwen3.8-27B, 4-bit, on one RTX 5090: 183 tok/s with thinking on, greedy, lossless against the same model's own greedy decode.
 
-We serve that model family, 4-bit, on our own 5090. Thinking on, greedy, tonight: 183 tok/s. The extra speed does not change the greedy tokens.
+The BF16 file is ~55.6 GB, so 32 GB means a quant. We serve W4A16 with a 7-token block drafter (DFlash). Writeup: https://github.com/NeuralLoot/solomon-lossless-5090
 
 POST2:
 Lossless here does not mean “4-bit equals BF16”.
@@ -19,7 +19,7 @@ One request, thinking on: 183 tok/s, 5.41 tokens kept per step.
 Four requests at once on the short prompts was slower (67 tok/s). A 57k window does not get a free lunch from batching those prefills. We are not hiding that.
 
 POST4:
-Why it beats a plain ~115 tok/s decode: a plain step reads the weights for one token. We read them once for a block and keep about 5.4 tokens when the drafter is right.
+For reference, public plain-decode reports for this model on a 5090 are around 115 tok/s. Why speculative is faster: a plain step reads the weights for one token. We read them once for a block and keep about 5.4 tokens when the drafter is right.
 
 On 16 Oct, same 5090, 32k window, the plain batch-invariant baseline was 38 tok/s and the block drafter was 217 tok/s, 16/16 identical greedy strings. MTP with 2 drafts only held about 1.9 tokens per step.
 
