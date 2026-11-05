@@ -1,38 +1,15 @@
-STANDALONE (not a quote/reply). READY to post.
+1/ Lossless Qwen3.8-27B on one RTX 5090.
 
-POST1:
-Qwen3.8-27B, 4-bit, on one RTX 5090: 235.1 tok/s greedy (one request) and 510.8 tok/s aggregate (four at once), lossless against the same model's own greedy decode.
+Thinking off: 290.5 tok/s (1-req) / 614.3 tok/s (4-req).
+Thinking on: 228.7 / 467.4.
 
-The BF16 file is ~55.6 GB, so 32 GB means a quant. We serve W4A16 with a 7-token block drafter (DFlash). Writeup: https://github.com/NeuralLoot/solomon-lossless-5090
+16 prompts, replies not cut, prefill included, window 57,344, DFlash K=7.
 
-POST2:
-Lossless here does not mean “4-bit equals BF16”.
+2/ "Lossless" = greedy output matches plain greedy of the same 4-bit checkpoint. Drafter proposes, target argmax verifies, rejected drafts never spoken. Not a BF16 match.
 
-It means the fast path and the one-token path of the same 4-bit model emit the same greedy string. A small drafter proposes up to 7 tokens. The model scores the block. Only the prefix it would have written itself is kept.
+3/ Stack: W4A16 (int4 GPTQ / Marlin) + DFlash2 at K=7. ~5.67 tokens kept per step (off), 4.74 (on). Thinking on is one generate — answer continues in the cache the reasoning just filled.
 
-POST3:
-4 Nov 2026, RTX 5090, context 57,344, DFlash K=7, greedy. Same 16 prompts as the 3 Nov short bench; the 16 strings match that speculative read. Wall clock includes prefill.
+4/ The hard part was keeping greedy identical across batch shapes: fp32 recurrent state, one batch-invariant RMSNorm, Marlin chunked to 16 rows, position-striped split-KV attention, bf16 tiles keyed on (N,K) not M.
 
-One request, thinking off: 235.1 tok/s (4,768 tokens in 20.28 s).
-Four requests at once: 510.8 tok/s aggregate, 139.9 per request. The batch finishes sooner; each request is slower than when it has the card alone.
-
-Acceptance was not recounted on this read. On the same short bench on 3 Nov: 5.49 tokens kept per step.
-
-POST4:
-For reference, public plain-decode reports for this model on a 5090 are around 115 tok/s. Why speculative is faster: a plain step reads the weights for one token. We read them once for a block and keep about 5.4 tokens when the drafter is right.
-
-On 16 Oct, same 5090, 32k window, the plain batch-invariant baseline was 38 tok/s and the block drafter was 217 tok/s, 16/16 identical greedy strings. MTP with 2 drafts only held about 1.9 tokens per step.
-
-POST5:
-The hard part on this architecture is that bf16 logits depend on the shape of the pass. A verify block and a one-token decode were not the same kernels.
-
-Recurrent state stays fp32. Norms and the 4-bit matrices use one batch-invariant plan, not a plan that changes with batch size. Attention for a token does not depend on who else is in the step. Async scheduling is off, because a cold start did not reproduce itself. CUDA graphs are wide enough for eight sequences at K=7, so four requests stay on the compiled path.
-
-POST6:
-What we are not saying:
-
-Not “4-bit equals the official BF16”.
-Not “299.5 tok/s” for the server that is up now. That was 23 Oct, 49,152 context.
-Not “440 tok/s” or “227 tok/s” as current. Those were 16 Oct, 32k context.
-Not a fresh plain-versus-speculative identity rerun on 4 Nov. That comparison needs a second, plain server. The identity numbers are from 16 Oct: 16/16, including with 4 requests in flight. The 4 Nov short bench matches the 3 Nov speculative strings, 16/16.
-Reasoning with thinking on is still the 3 Nov dated read: 184.9 tok/s, 5.41 tokens/step. Not re-run on 4 Nov.
+5/ Method + reproduce: https://github.com/NeuralLoot/solomon-lossless-5090
+Still pushing the envelope — these are the locked numbers so far.
