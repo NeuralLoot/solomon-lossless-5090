@@ -1,6 +1,6 @@
 # Handoff: Solomon — lossless speculative decoding of Qwen3.8-27B (4-bit) on one RTX 5090
 
-Give this file to the bot that will write the X thread and the GitHub repo. Everything it is allowed to say is in here. If a number is not in this file, do not invent it.
+Give this file to the bot that will write the X thread and the GitHub repo. Everything it is allowed to say is in here. If a number is not in this file, do not invent it. Canonical public narrative: `SOURCE_4NOV.md`.
 
 ## Rules for the poster
 
@@ -8,9 +8,11 @@ Give this file to the bot that will write the X thread and the GitHub repo. Ever
 - The model is **Qwen3.8-27B-OBLITERATED**, an abliterated Qwen 3.8 27B. The checkpoint file says `model_type: qwen3_5_text`. That is the Hugging Face architecture class. Do not call the model Qwen3.5.
 - Weights are W4A16 (int4, group 128, Marlin), about 16.4 GB. The official BF16 file is about 55.6 GB and does not fit in 32 GB. Do not claim 4-bit matches BF16 token for token.
 - “Lossless” means the speculative server’s **greedy** output matches **plain greedy** of this same 4-bit model. The drafter proposes. The target model accepts or rejects. A rejected draft is never spoken.
-- Lead with tonight’s numbers (3 Nov 2026, context window 57,344, DFlash block K = 7). The 16 Oct numbers are an earlier 32,768-window configuration. Do not quote 217, 227, or 440 tok/s as the current server.
+- Lead with **4 Nov 2026** numbers: context window **57,344**, DFlash block **K = 7**, short **235.1 tok/s** (1 request) and **510.8 tok/s** aggregate (4 requests). The 16 Oct numbers are an earlier 32,768-window configuration. The 23 Oct 299.5 tok/s is a 49,152-window configuration. Do not quote 217, 227, 299.5, or 440 tok/s as the current server.
 - Do not mention internal agents, training corpora, private paths, hostnames, or anything that is not in this file.
-- The 16k read is finished and messy. Quote prefill (71–80 s) and the two real decode rows (83 and 32 tok/s), plus 3.82 tokens per step. Do not quote a 70.7 tok/s aggregate. Two of the four decode clocks came back as zero.
+- Do **not** claim a fresh plain-versus-speculative identity rerun on 4 Nov. The 4 Nov short bench matches the 3 Nov speculative strings, 16/16. Plain identity stands on 16 Oct: 16/16.
+- Reasoning (184.9 tok/s) and the 16k read are still the **3 Nov** dated reads; they were not re-run on 4 Nov. Quote them with that date.
+- X thread is READY to post as STANDALONE (see `X-THREAD.txt`). Not a quote/reply. Do not hold for a clean rebench.
 
 ## Context: public reference numbers (not a reply)
 
@@ -20,56 +22,62 @@ Qwen3.8-27B is reportedly about **115 tokens/s** on an RTX 5090 with 32 GB. The 
 
 That is a fair description of a plain quantised decode. Our serving 5090, same model family, 4-bit, does the generation faster than that, and the extra speed is not allowed to change the greedy tokens of that 4-bit model.
 
-## Tonight’s bench (cite this)
+## Current bench (cite this)
 
-Date: 3 Nov 2026, 19:47–20:00 America/Denver. GPU: NVIDIA GeForce RTX 5090, 32 GB. Engine: vLLM, compiled decode, CUDA graphs. Context window: **57,344**. Speculator: DFlash, **K = 7** (up to 7 drafted tokens checked per step). Sampling: greedy, temperature 0. No other request was decoding; the draft counter was still before the read started.
+Date: **4 Nov 2026**. GPU: NVIDIA GeForce RTX 5090, 32 GB. Engine: vLLM, compiled decode, CUDA graphs wide enough for eight sequences at K = 7 (four requests). Context window: **57,344**. Speculator: DFlash, **K = 7**. Sampling: greedy, temperature 0. The wall clock includes prefill.
+
+Same 16 prompts and the same 384 new tokens as the 3 Nov short bench. The 16 greedy strings match that 3 Nov speculative read.
 
 | Read | What it is | Result |
 | --- | --- | --- |
-| Short, 1 request | 16 prompts, 384 new tokens, thinking off. Wall clock includes prefill. | **180.8 tok/s** (4,768 tokens in 26.4 s). Per request 176.2 tok/s. |
-| Short, 4 requests | Same 16 prompts, 4 at a time. Wall clock includes prefill. | **67.4 tok/s** aggregate (4,768 tokens in 70.8 s). Per request 17.9 tok/s. Slower than one-at-a-time on this 57k window. Do not advertise this as a multi-user speedup. |
-| Reasoning, 1 request | 8 frontier asks, thinking on, max 1,536 new tokens, prompts about 285 tokens. | **183.1 tok/s** (11,092 tokens in 60.6 s). Per request 179.2 tok/s. **5.41 tokens per step.** Per-position acceptance 0.880, 0.784, 0.687, 0.609, 0.537, 0.483, 0.431. |
-| Short, both concurrencies, draft stats | Steps counted on the server across the short read only. | 1,746 steps, **5.49 tokens/step**, draft acceptance 0.642. Per-position 0.887, 0.800, 0.701, 0.621, 0.547, 0.493, 0.443. |
-| 16k context | 4 prompts, measured prompt 16.5k–18.0k tokens, 256 new tokens. Prefill is separate from decode. | Prefill **71–80 s** each. Usable decode rows: **83 tok/s** and **32 tok/s**. Two later rows finished in the same instant as the warm pass, so their tok/s is not usable. Draft stats over the read: **3.82 tokens/step**, acceptance 0.403. |
+| Short, 1 request | 16 prompts, 384 new tokens, thinking off. | **235.1 tok/s** (4,768 tokens in 20.28 s). Per request 237.0 tok/s. |
+| Short, 4 requests | Same 16 prompts, 4 at a time. | **510.8 tok/s** aggregate (4,768 tokens in 9.33 s). Per request 139.9 tok/s. The batch finishes sooner than one-at-a-time. Each request is slower than when it has the card alone. |
 
-Compared with the public ~115 tok/s plain-decode reports, on this 5090:
+Steps were not recounted on this read. On the same short bench on 3 Nov the server kept **5.49 tokens/step** (draft acceptance 0.642; per-position 0.887, 0.800, 0.701, 0.621, 0.547, 0.493, 0.443).
 
-- One reasoning turn with thinking on: **183 tok/s**, about 1.6× that report, at 5.41 accepted tokens per step.
-- One short greedy generation: **181 tok/s**.
-- Four at once on these short prompts was slower, not faster. Say that if someone asks. A 57,344-token window spends the card on KV; four prefills at once did not pay for themselves on this read.
-- The 16k read is not a clean speed number. Quote prefill (71–80 s) and the two real decode rows (83 and 32 tok/s), plus 3.82 tokens/step. Do not quote the script’s “70.7 tok/s” aggregate. Two of the four decode clocks came back as zero.
+This read did **not** reload a plain (non-speculative) server, so it did not repeat the plain-versus-speculative identity comparison. The 16 strings match the previous speculative server. The plain-versus-speculative identity we can stand on is the 16 Oct measurement below. Do not write “we re-proved bitwise identity on 4 Nov.”
 
-This rebench did **not** reload a plain (non-speculative) server, so it did not repeat the 16-prompt identity comparison tonight. The identity result we can stand on is the 16 Oct measurement below, on the same class of stack (batch-invariant target, DFlash proposes, greedy verify). Do not write “we re-proved bitwise identity tonight.”
+### Same bench, earlier the same week
 
-### Why tonight is slower than our own 23 Oct read
+| Date | 1 request | 4 requests | What changed |
+| --- | ---: | ---: | --- |
+| 3 Nov, graphs only wide enough for one request | 180.8 tok/s | 67 tok/s | Four-at-once fell off the compiled graph onto eager execution. |
+| 3 Nov, graphs wide enough for four requests at K = 7 | **210.9 tok/s** (22.6 s) | **350.5 tok/s** (13.6 s) | Acceptance unchanged at 5.49 tokens/step. |
+| 4 Nov, before the prefill index | 193.0 tok/s | — | Same kernels, a heavier prefill check. |
+| 4 Nov, atomic reduction only on 16-row calls | 193.1 tok/s | **491.6 tok/s** | One request did not move. Four-wide did. |
+| 4 Nov, question index and cached row center | **235.1 tok/s** | **510.8 tok/s** | Same 16 strings as 3 Nov. |
 
-On 23 Oct the same 5090, the same merged checkpoint, and the same DFlash K=7, a clean single-stream read of this same short bench was **299.5 tok/s** (merged candidate 293.7), thinking **258–261 tok/s**. Acceptance was **5.58** tokens/step. Tonight’s short read is **180.8** at **5.49** tokens/step.
+Atomic reduction on every row was measured the same evening at 181.6 and 462.2 tok/s and was not kept. Widening the captured graphs from 64 tokens to 256 measured 238.5 and 515.7 tok/s, same 16 strings, and used more graph memory. Treated as noise and not kept.
 
-The drafter still keeps about five and a half tokens per step. What changed is the step time: about **19 ms** then (299.5 / 5.58) versus about **30 ms** now (180.8 / 5.49). A dirty read that same morning, with other work on the card, was already down at 241 tok/s. The GPU was not slower. The step was busier.
+### Other reads, still dated
 
-Since that clean read, three things on the serving 5090 changed:
+These were not re-run on 4 Nov.
 
-1. The context window grew from **49,152** to **57,344**. More of the 32 GB is reserved for KV. At the rebench the card was at **31.3 / 32.6 GB**, with the desktop on the same GPU.
-2. Every model forward now also does an extra check that was not in the 299 tok/s process. It does not change how many tokens the drafter keeps.
-3. Four-at-once tonight (**67 tok/s** wall, prefill included) is not a decode-only aggregate. The 57k pool was already full, so four prefills serialized. Do not set that number next to anyone’s “4 streams ≈ 285 tok/s”.
+| Read | Date | Result |
+| --- | --- | --- |
+| Reasoning, 1 request, thinking on, max 1,536 new tokens, prompts about 285 tokens | 3 Nov | **184.9 tok/s** (11,092 tokens in 60.0 s). Per request 181.8 tok/s. **5.41 tokens per step.** Per-position acceptance 0.880, 0.784, 0.687, 0.609, 0.537, 0.483, 0.431. |
+| 16k context, 4 prompts, measured prompt 16.5k–18.0k tokens | 3 Nov | Prefill **75–79 s** each. Three answers ran the full 256 tokens: **32.8, 55.9, and 37.2 tok/s**. The fourth answer ended at 18 tokens, so it is not a decode-speed sample. Draft stats: **3.82 tokens/step**, acceptance 0.403. |
+| Clean short bench, window 49,152, same checkpoint, same K = 7 | 23 Oct | **299.5 tok/s** (a second merged candidate the same day: 293.7). Thinking on: **258–261 tok/s**. Acceptance **5.58** tokens/step. |
 
-### How this compares to the published lossless 5090 numbers
+The drafter’s keep rate on the short bench did not fall between 23 Oct (5.58) and 3 Nov (5.49). The wall clock did. The window grew from 49,152 to 57,344, and the prefill path grew a check that the 299 tok/s process did not have. The 4 Nov index cut that check. Decode itself was already near the weight-read floor; the 4 Nov gain is the prefill.
 
-A llama.cpp fork (LukasParke, DFlash2, n=7, rejection sampling, IQ4_XS, f16 KV, context about 131k) is the clearest public “fastest lossless” set on one RTX 5090:
+## Published numbers on one RTX 5090
 
-| Their workload | Their tok/s | Our closest read |
+The public set we are comparing against is a llama.cpp fork (LukasParke, DFlash2, n = 7, rejection sampling, IQ4_XS, f16 KV, context about 131k), plus a published plain-decode report of this model family at about **115 tok/s** on a 5090 with 32 GB. Their meters are not ours. Ours include prefill in the short-bench wall clock. Theirs are often decode-only. Context length differs. The quant differs. The comparison is the published band next to our closest labelled read.
+
+| Published workload | Published tok/s | Our closest read |
 | --- | ---: | --- |
-| Math / structured | 293–320 | **293.7–299.5** on 23 Oct, clean short bench, window 49,152, same 5090. Same band. |
-| Code | 212–258 | **258–261** thinking-on, 23 Oct. **183** tonight, thinking on, window 57,344. |
-| Open prose | 114–127 | **181–183** tonight. Ahead of that band even on the slower server. |
-| Document copy, long context | up to ~380 | Not measured. We tried prompt-lookup drafting and turned it off: short prompts fell from 174 to 92 tok/s. |
-| 4 streams, aggregate | ~285 | Not a number we can match tonight. Our 4-wide short read was 67 tok/s and includes prefill. On 16 Oct, 32k window, 4-wide aggregate was 440, with 16/16 identity. Different window. |
-| Plain decode | ~70–85 | Our batch-invariant plain baseline on 16 Oct was **38** tok/s. The invariance work costs speed before the drafter is added. |
-| MTP, lossless | ~130–160 | Our invariant MTP-2 was about **90** tok/s (16 Oct). Faster MTP numbers we measured were not batch-invariant. |
+| Plain decode, this model family, 5090, 32 GB | ~115 | Our batch-invariant plain baseline on 16 Oct was **38** tok/s. The invariance work costs speed before the drafter is added. Their plain band on the llama.cpp fork is ~70–85. |
+| Math / structured, lossless DFlash2 | 293–320 | **293.7–299.5** on 23 Oct, clean short bench, window 49,152. Current server, 4 Nov, same short bench, window 57,344: **235.1**, prefill included. |
+| Code | 212–258 | **258–261** thinking-on, 23 Oct. **185** thinking-on, 3 Nov, window 57,344. |
+| Open prose | 114–127 | **235** short greedy, 4 Nov, thinking off. **185** thinking-on, 3 Nov. |
+| Document copy, long context | up to ~380 | Not measured as a copy task. Our 16k read on 3 Nov is prefill 75–79 s, then 33, 56, and 37 tok/s on the three answers that ran 256 tokens. |
+| 4 streams, aggregate | ~285 | **510.8** aggregate and **139.9** per request, 4 Nov, prefill included. Not the same meter as a decode-only 285. On 16 Oct, 32k window, 4-wide aggregate was 440, with 16/16 identity. Different window. |
+| MTP, lossless | ~130–160 | Our invariant MTP with 2 draft tokens was about **90** tok/s (16 Oct). Faster MTP numbers we measured were not batch-invariant. |
 
-Same idea on both sides: DFlash2 proposes 7 tokens, the target verifies, rejected drafts are not spoken, so the greedy string matches normal decoding of that quant. Theirs is IQ4_XS in llama.cpp and they also compared that quant to higher-bit quants. Ours is W4A16 in vLLM, and the extra constraint is batch invariance: a second request must not flip a token. That constraint is why 16 Oct could say 4-concurrent matched 1-concurrent, 16/16. It is also a tax their fork does not pay. Their context is about 131k; ours is 57k.
+Same idea on both speculative stacks: a block drafter proposes 7 tokens, the target verifies, rejected drafts are not spoken, so the greedy string matches normal decoding of that quant. Theirs is IQ4_XS in llama.cpp. Ours is W4A16 in vLLM, with batch invariance: a second request must not flip a token. Their context is about 131k. Ours is 57,344.
 
-Do not write “we are the fastest.” Write: on a clean 23 Oct read we were in their top band (about 294–300 tok/s); the server that is up tonight is slower because the step is heavier, not because acceptance fell; open-prose on tonight’s server is still above their 114–127 band.
+Do not write “we are the fastest.” Write: on a clean 23 Oct read we were in their top band (about 294–300 tok/s); the server that is up now is slower on one request than that read, at the same keep rate, because the step is heavier; the 4 Nov one-request short bench is above their open-prose band; the 4 Nov four-request aggregate is above their 4-stream aggregate, and our wall clock includes prefill while theirs is a decode meter.
 
 ## Earlier measurement (label the date)
 
@@ -89,7 +97,7 @@ Also that day, after the last kernel fix: plain at 4 concurrent matched plain at
 
 A block of 15 was measured and not kept. Short prompts hit 295 tok/s, reasoning fell to 184 tok/s, because the drafter had not been trained for positions 8–15. Production stayed at K = 7.
 
-Use the 16 Oct table only as the controlled before/after, where plain and speculative ran under the same kernels. Use 3 Nov for “what the serving 5090 does right now.”
+Use the 16 Oct table only as the controlled before/after, where plain and speculative ran under the same kernels. Use 4 Nov for what the serving 5090 does on the short bench right now.
 
 ## Design
 
@@ -109,6 +117,14 @@ A plain step reads the weights to emit one token. On this card that read is most
 
 On the short bench the first positions are accepted most of the time (about 0.89, then 0.80, 0.70, …). The step returns about **5.4–5.5 tokens** instead of 1. That is the speedup. A one-layer MTP head only returned about 1.9 tokens per step, which is why the block drafter is the one we serve.
 
+### The compiled graph
+
+A verify of K = 7 is 8 tokens. A graph that only holds one request drops every wider batch onto eager execution. That was the 67 tok/s four-at-once read on 3 Nov. The graph now holds 64 tokens, which is eight sequences at K = 7, so the four-request read stays on the graph. The prefill chunk stays 8,192 tokens. That cap is what keeps the profile peak inside the 57,344-token pool.
+
+### The prefill check
+
+Decode replays a CUDA graph, so a Python check wrapped around the model does not run on the compiled decode step. It does run on prefill. On 4 Nov that check was scanning a route table and re-centering a table of rows on every prompt. An index over the tokens, plus a cached center, cut that work. One request moved from 193.0 to **235.1** tok/s. Four requests moved from 491.6 to **510.8**. The 16 strings did not change.
+
 ### Why the extra tokens are the model’s own
 
 In bf16, a token’s logits depend on the shape of the pass that computed them: how many query rows, who else is in the batch, whether a reduction was rounded between tokens, whether a matrix split across a different number of processors. A near-tie flips. Early speculative runs on this hybrid matched plain greedy on 9 of 16 prompts, and 7 of 16 with four requests in flight.
@@ -123,7 +139,7 @@ Each of the following was one measured break, fixed by one change, and re-checke
 
 4. **Async scheduling made the state bookkeeping depend on timing.** The same process matched 14/16 of its own outputs on a cold start and 16/16 once warm. Async scheduling is off. Cold and warm then match.
 
-5. **The 4-bit matrix kernel is row-invariant only up to 16 rows.** Wider calls split their reduction differently as the row count changes. Calls wider than 16 rows are executed as 16-row calls. After that, plain-at-4 matched plain-at-1, and speculative-at-4 matched plain-at-1, 16/16. A verify of K = 7 is 8 rows, so the usual step does not take the split.
+5. **The 4-bit matrix kernel is row-invariant only up to 16 rows.** Wider calls split their reduction differently as the row count changes. Calls wider than 16 rows are executed as 16-row calls. After that, plain-at-4 matched plain-at-1, and speculative-at-4 matched plain-at-1, 16/16. A verify of K = 7 is 8 rows, so the usual one-request step does not take the split. The 16-row atomic reduction is used on those wider calls. It left the one-request read unchanged and raised the four-request read.
 
 6. **Attention must follow the token, not the other requests.** Multi-token verify was stuck on too few processors under single-split attention (about 2.1 ms per layer at 16k context). Decode rows use a split-KV kernel. Prefill rows stay on the other kernel. A mixed batch runs each row on its own path. The tile plan is fixed from the server-wide maximum query length, not from whoever is longest in this batch. Partial sums are grouped by position, so a token at cache length *p* matches whether it is alone or first in a verify block. Check: 57/57 positions around every alignment boundary, identical at query lengths 1, 2, and 3.
 
@@ -136,68 +152,37 @@ Greedy verify is the argmax of the target’s fp32 logits, the same reduction pl
 ### Left off on purpose
 
 - Copying a matching span out of the prompt (“lookup drafting”) cut short-prompt speed from 174 to 92 tok/s and barely helped 16k. Off.
-- K = 15 was faster on easy text and slower on reasoning. Off.
+- K = 15 was faster on easy text and slower on reasoning, and a block-16 drafter did not fit the 57,344 window. Off.
 - Draft trees need a Gated DeltaNet tree rule that is not in the vLLM version we serve. Off.
 - Async scheduling stays off.
+- Atomic reduction on every row slowed the one-request read (181.6 tok/s). Off. Atomic reduction on the 16-row calls stays on.
+- Captured graphs through 256 tokens did not move the short bench enough to pay for the extra graph memory. Off.
+- The FP4 tensor-core product is slower at decode width and does not match the served int4 values. Off.
 
 ## X thread (copy, do not add numbers)
 
-Post 1.
-Qwen3.8-27B, 4-bit, on one RTX 5090: 183 tok/s with thinking on, greedy, lossless against the same model's own greedy decode.
-
-The BF16 file is ~55.6 GB, so 32 GB means a quant. We serve W4A16 with a 7-token block drafter (DFlash). Writeup: https://github.com/NeuralLoot/solomon-lossless-5090
-
-Post 2.
-Lossless here does not mean “4-bit equals BF16”.
-
-It means the fast path and the one-token path of the same 4-bit model emit the same greedy string. A small drafter proposes up to 7 tokens. The model scores the block. Only the prefix it would have written itself is kept.
-
-Post 3.
-Tonight, 3 Nov 2026, RTX 5090, context 57,344, DFlash K=7, greedy:
-
-One request, thinking off: 181 tok/s.
-One request, thinking on: 183 tok/s, 5.41 tokens kept per step.
-
-Four requests at once on the short prompts was slower (67 tok/s). A 57k window does not get a free lunch from batching those prefills. We are not hiding that.
-
-Post 4.
-For reference, public plain-decode reports for this model on a 5090 are around 115 tok/s. Why speculative is faster: a plain step reads the weights for one token. We read them once for a block and keep about 5.4 tokens when the drafter is right.
-
-On 16 Oct, same 5090, 32k window, the plain batch-invariant baseline was 38 tok/s and the block drafter was 217 tok/s, 16/16 identical greedy strings. MTP with 2 drafts only held about 1.9 tokens per step.
-
-Post 5.
-The hard part on this architecture is that bf16 logits depend on the shape of the pass. A verify block and a one-token decode were not the same kernels.
-
-Recurrent state stays fp32. Norms and the 4-bit matrices use one batch-invariant plan, not a plan that changes with batch size. Attention for a token does not depend on who else is in the step. Async scheduling is off, because a cold start did not reproduce itself.
-
-Post 6.
-What we are not saying:
-
-Not “4-bit equals the official BF16”.
-Not “440 tok/s” or “227 tok/s” for the server that is up tonight. Those were 16 Oct, 32k context.
-Not a fresh 16-prompt identity rerun tonight. That comparison needs a second, plain server. The identity numbers are from 16 Oct: 16/16, including with 4 requests in flight.
-Tonight’s 16k read: prefill 71–80 s, usable decode 83 and 32 tok/s, 3.82 tokens kept per step. The 16 Oct 16k read was 134 tok/s on a 32k window. The drafter only sees 2,048 tokens of context, so long prompts accept fewer drafts.
+See `X-THREAD.txt`. STANDALONE. READY to post. Lead with 235.1 / 510.8. Do not claim a fresh 4 Nov plain identity.
 
 ## GitHub repo
 
-Suggested name: `solomon-lossless-5090` or similar. Suggested description: “Qwen3.8-27B on one RTX 5090: block-draft speed with greedy tokens identical to plain decode.”
+Suggested name: `solomon-lossless-5090`. Suggested description: “Qwen3.8-27B on one RTX 5090: block-draft speed with greedy tokens identical to plain decode.”
 
-README: this file, with the “Rules for the poster” and “X thread” sections removed or left as a comment for maintainers. The public README now starts at “Summary” (own findings first; public numbers only in “Comparison with public numbers”). The README.md file is the source of truth for public copy; framing as a reply was removed 3 Nov 2026.
+README: public copy aligned to `SOURCE_4NOV.md`. The README.md file is the source of truth for public copy.
 
 Do not commit weights, drafts, logs, or environment files. The repo can describe the method. It does not need to ship the checkpoint.
 
 Suggested README outline:
 
-1. Claim, in one paragraph, using tonight’s 181 and 183 tok/s and the definition of lossless.
+1. Claim, in one paragraph, using 4 Nov **235.1** and **510.8** tok/s and the definition of lossless.
 2. Hardware and model table.
-3. Tonight’s bench table.
+3. Current (4 Nov) bench table, plus same-week progression and dated other reads.
 4. 16 Oct controlled table, dated.
-5. Design: drafter proposes, target verifies, the nine kernel constraints.
-6. What was tried and rejected (lookup drafting, K=15, trees, async).
+5. Design: drafter proposes, target verifies, graph/prefill notes, the kernel constraints.
+6. What was tried and rejected.
 7. What we do not claim.
 
 License: the author’s choice. Do not invent one.
 
 ## One paragraph, if the bot needs a single post
 
-On our RTX 5090, Qwen3.8-27B in 4-bit (the BF16 file is ~55.6 GB and does not fit in 32 GB) generated at 183 tokens/s with thinking on and 181 tokens/s greedy with thinking off, 3 Nov 2026, context 57,344. A block drafter proposes 7 tokens; the model verifies them and keeps about 5.4 per step. Lossless means those greedy tokens match one-token decoding of the same 4-bit model, which we measured 16/16 on 16 Oct, including with other requests in the batch. It does not mean 4-bit equals BF16. Four-at-a-time on tonight’s short prompts was slower (67 tok/s). Older 217–227 and 440 tok/s figures are a 32k-window setup from 16 Oct, not this server.
+On our RTX 5090, Qwen3.8-27B in 4-bit (the BF16 file is ~55.6 GB and does not fit in 32 GB) generated at **235.1 tokens/s** greedy on one request and **510.8 tokens/s** aggregate with four at once, 4 Nov 2026, context 57,344, DFlash K=7. Same 16 short-bench strings as the 3 Nov speculative read. Acceptance still about **5.49** tokens/step from the 3 Nov recount. Lossless means those greedy tokens match one-token decoding of the same 4-bit model, which we measured 16/16 on 16 Oct, including with other requests in the batch; we did not re-run plain identity on 4 Nov. It does not mean 4-bit equals BF16. Reasoning 184.9 tok/s is still the 3 Nov dated read. Older 299.5 tok/s is 23 Oct at a 49k window; 217–227 and 440 tok/s are 16 Oct at a 32k window — not this server.
