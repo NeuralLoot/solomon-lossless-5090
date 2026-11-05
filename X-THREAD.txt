@@ -1,15 +1,48 @@
-1/ Lossless Qwen3.8-27B on one RTX 5090.
+1/
+Every week someone posts a faster Qwen3.8-27B on an RTX 5090. 320 tok/s, 270, 220…
 
-Thinking off: 290.5 tok/s (1-req) / 614.3 tok/s (4-req).
-Thinking on: 228.7 / 467.4.
+The question almost nobody answers: do you get the same reply when a second person hits the server at the same time?
 
-16 prompts, replies not cut, prefill included, window 57,344, DFlash K=7.
+We built for that. Here's the public field next to ours 🧵
 
-2/ "Lossless" = greedy output matches plain greedy of the same 4-bit checkpoint. Drafter proposes, target argmax verifies, rejected drafts never spoken. Not a BF16 match.
+2/
+Most fast demos cut a corner: a meter that skips prefill, replies capped short, or answers that drift under load.
 
-3/ Stack: W4A16 (int4 GPTQ / Marlin) + DFlash2 at K=7. ~5.67 tokens kept per step (off), 4.74 (on). Thinking on is one generate — answer continues in the cache the reasoning just filled.
+Our bar for "lossless":
+• speculative output = plain greedy of the same 4-bit checkpoint, token for token
+• a 2nd in-flight request can't flip a token
 
-4/ The hard part was keeping greedy identical across batch shapes: fp32 recurrent state, one batch-invariant RMSNorm, Marlin chunked to 16 rows, position-striped split-KV attention, bf16 tiles keyed on (N,K) not M.
+Last check: 16/16, incl. 4-wide.
 
-5/ Method + reproduce: https://github.com/NeuralLoot/solomon-lossless-5090
-Still pushing the envelope — these are the locked numbers so far.
+3/
+That second rule costs real speed. Batch-invariant kernels drop plain greedy to ~38 tok/s. Most 5090 setups run plain at ~85–115.
+
+So we buy it back with DFlash2 K=7: draft 7, verify 8 in one pass, keep only what the 27B would have said anyway. ~5.67 tokens kept per step.
+
+4/
+The field, all real reports, none apples-to-apples:
+
+• LukasParke llama.cpp IQ4_XS: 293–320 math, often decode-only
+• gratex vLLM W4A16: 260–270
+• darksidewalker SGLang NVFP4: 221 live median
+• Gabe Ortiz q27: ~220
+• GenerationAI: 215
+• Suhail SGLang: 139.7 (matched 32k suite)
+
+None state batch invariance.
+
+5/
+Ours, locked 4 Nov. Wall clock with prefill, replies not cut, 57k window:
+
+Thinking off: 290.5 tok/s alone → 614.3 with 4 at once
+Thinking on: 228.7 → 467.4
+
+Four users, each getting exactly the reply they'd get alone. That's the product, not the peak.
+
+6/
+Full table (quant, engine, meter, what "lossless" means for each), method, and everything we tried and threw out:
+https://github.com/NeuralLoot/solomon-lossless-5090
+
+5090 folks: what should we measure next? 8-wide? Long-context prefill? A bit-exact test you'd actually trust? Reply and we'll run it.
+
+[media: 1/ assets/solomon-compare.png · 2/ assets/solomon-lossless.png · 5/ assets/solomon-load.png]

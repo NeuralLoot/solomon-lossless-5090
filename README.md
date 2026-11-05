@@ -1,5 +1,9 @@
 # Solomon: lossless Qwen3.8-27B on one RTX 5090
 
+Most fast local demos cheat somewhere: different answers under load, cut replies, or a meter that skips prefill. That matters the moment a second person uses the box: if their request can change a token you already saw, you have a demo, not a product. Solomon is the opposite bet, on one consumer 5090.
+
+**Lossless, defined:** speculative greedy output is token-for-token identical to plain greedy of the *same 4-bit checkpoint*, and a second in-flight request cannot flip a token (batch-invariant kernels). Last check 16/16 prompts, including 4-wide. Not a BF16 match (BF16 doesn't fit).
+
 **4 Nov 2026 · window 57,344 · W4A16 + DFlash K=7 · 16-prompt bench, temp 0, replies NOT cut, wall includes prefill**
 
 | | 1 request | 4 requests | Kept/step | Acceptance |
@@ -7,9 +11,20 @@
 | Thinking off | **290.5 tok/s** | **614.3 tok/s** | ~5.67 | 0.666 |
 | Thinking on | **228.7 tok/s** | **467.4 tok/s** | ~4.74 | 0.534 |
 
+![Solomon vs published RTX 5090 numbers](assets/solomon-compare.png)
+
+More charts: [what lossless means here](assets/solomon-lossless.png) · [under load](assets/solomon-load.png) · script `assets/make_charts.py`. Full table: [PUBLIC_COMPARES.md](PUBLIC_COMPARES.md).
+
+**How we differ from the public 5090 field** (LukasParke llama.cpp, gratex vLLM W4A16, darksidewalker SGLang NVFP4, Gabe Ortiz q27, GenerationAI, Suhail Mohebi; not apples-to-apples):
+- **Meter:** wall clock with prefill, replies never cut. Many public numbers are decode-only, live-traffic medians, or self-reported.
+- **Lossless is measured:** identity vs plain greedy checked, not assumed from the algorithm or a pass/fail quality gate.
+- **Batch-invariant:** no public report we found states it.
+- **The tax:** plain greedy on invariant kernels is ~38 tok/s; DFlash2 K=7 buys it back without changing a token.
+- **Quant/context differ:** W4A16 GPTQ at 57,344 vs IQ4_XS ~131k, NVFP4 32k–80k, etc.
+
 Decode-only, easy text, evening 4 Nov (still tuning, not the primary claim): **381 tok/s** (900 tok), **378 tok/s** (700 tok).
 
-**Lossless** = speculative greedy output matches plain greedy of the *same 4-bit checkpoint*. It is not a BF16 match (BF16 is ~55.6 GB, doesn't fit). Last plain-vs-spec identity run: 16 Oct, 16/16 incl. 4-in-flight; 4 Nov strings match 3 Nov spec strings 16/16.
+Identity history: last plain-vs-spec run 16 Oct, 16/16 incl. 4-in-flight; 4 Nov strings match 3 Nov spec strings 16/16.
 
 **Thinking on** writes reasoning and answer in **one generate** — the answer continues in the cache the reasoning just filled. Do not stop at the closing tag and start a second request for the answer. The older stop+prefill path on the same prompts was **180.3 / 352.1** (same 4.74 keep). An earlier non-thinking boot was **253.3 / 537.8**; this boot is **290.5 / 614.3** with the same 5.67 keep.
 
@@ -32,6 +47,6 @@ Still pushing the envelope; these are the locked numbers so far.
 5. Tokens/step = 1 + accepted/drafts from draft counters.
 
 ## Public compares (honest)
-Closest public: LukasParke llama.cpp fork, DFlash2 n=7, **IQ4_XS**, ~131k context, often decode-only. Ours: W4A16, 57,344, batch-invariant, prefill included. Different meters — see PUBLIC_COMPARES.md.
+See [PUBLIC_COMPARES.md](PUBLIC_COMPARES.md): source | quant | engine | meter | batch-invariant | tok/s, with what "lossless" means for each.
 
 Full detail: HANDOFF.md, SOURCE_4NOV.md.
